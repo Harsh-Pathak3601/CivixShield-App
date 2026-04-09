@@ -1,0 +1,33 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+veda
+.idea/
+.vscode/
+*.swp
+.DS_Store
+*.iml
+
+# Android/Expo Build
+android/.gradle
+android/build
+android/app/build
+android/app/.cxx
+.gradle
+
+# Environment variables
+.env
+.env.local
+
+# Typescript compilation errors
+ts_errors.txt
+ts_errors_utf8.txt
+tsc-errors.txt
+tsc_output.txt
