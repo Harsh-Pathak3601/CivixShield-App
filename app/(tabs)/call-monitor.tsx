@@ -51,6 +51,9 @@ export default function CallMonitorScreen() {
   const [currentVerdict, setCurrentVerdict] = useState<ChunkResult | null>(null)
   const [log,            setLog]            = useState<ChunkResult[]>([])
 
+  const [fullTranscript, setFullTranscript] = useState('')
+  const fullTranscriptRef = useRef('')
+
   const recordingRef  = useRef<Audio.Recording | null>(null)
   const chunkTimer    = useRef<ReturnType<typeof setInterval> | null>(null)
   const elapsedTimer  = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -95,6 +98,8 @@ export default function CallMonitorScreen() {
     setCurrentVerdict(null)
     setSessionScore(0)
     setElapsedSeconds(0)
+    setFullTranscript('')
+    fullTranscriptRef.current = ''
     setStatusText('Listening...')
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
 
@@ -165,14 +170,14 @@ export default function CallMonitorScreen() {
     try {
       // expo-file-system works on Android file:// URIs — FileReader does NOT.
       const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       })
 
       const res = await fetch(CIVIX_API, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content:     '[LIVE_CALL_AUDIO]',
+          content:     (fullTranscriptRef.current ? fullTranscriptRef.current + '\n' : '') + '[LIVE_CALL_AUDIO]',
           contentType: 'audio',
           mediaBase64: base64,
           mediaType:   'audio/m4a',
@@ -189,6 +194,12 @@ export default function CallMonitorScreen() {
       }
     } catch (err) {
       console.warn('[LiveCall] API unavailable, falling back to local engine:', err)
+    }
+
+    // Append new speech to the global transcript state
+    if (transcript.trim().length > 0) {
+      fullTranscriptRef.current += (fullTranscriptRef.current ? ' ' : '') + transcript
+      setFullTranscript(fullTranscriptRef.current)
     }
 
     // ── Always run local rules engine ─────────────────────────────────────────
@@ -314,9 +325,9 @@ export default function CallMonitorScreen() {
               ))}
             </View>
           )}
-          {currentVerdict?.transcript ? (
-            <Text style={[styles.transcriptText, { color: colors.textDim }]} numberOfLines={3}>
-              "{currentVerdict.transcript}"
+          {fullTranscript ? (
+            <Text style={[styles.transcriptText, { color: colors.textDim }]} numberOfLines={4}>
+              "{fullTranscript}"
             </Text>
           ) : isListening ? (
             <Text style={[styles.transcriptText, { color: colors.textDim }]}>
@@ -326,12 +337,26 @@ export default function CallMonitorScreen() {
         </View>
 
         {/* ── Forensic Report ── */}
-        {currentVerdict?.explanation ? (
+        {currentVerdict?.explanation && isListening && (
           <View style={[styles.forensicCard, { borderColor: currentColor, backgroundColor: colors.card }]}>
-            <Text style={[styles.forensicTitle, { color: currentColor }]}>FORENSIC ANALYSIS</Text>
+            <Text style={[styles.forensicTitle, { color: currentColor }]}>LIVE FORENSIC ANALYSIS</Text>
             <Text style={[styles.forensicText, { color: colors.textDim }]}>{currentVerdict.explanation}</Text>
           </View>
-        ) : null}
+        )}
+
+        {/* ── Final Session Report ── */}
+        {!isListening && sessionScore > 0 && currentVerdict && (
+          <View style={[styles.forensicCard, { borderColor: sessionColor, backgroundColor: colors.card, borderWidth: 2 }]}>
+            <Text style={[styles.forensicTitle, { color: sessionColor, fontSize: 13 }]}>FINAL SESSION FORENSIC REPORT</Text>
+            <Text style={[styles.forensicText, { color: colors.textDim }]}>
+              {currentVerdict.explanation || "No advanced threats detected during this call."}
+            </Text>
+            <Text style={[styles.sectionTitle, { color: sessionColor, marginTop: 12 }]}>FULL TRANSCRIPT:</Text>
+            <Text style={{ fontFamily: 'monospace', fontSize: 10, color: colors.textDim, marginTop: 4 }}>
+              {fullTranscript}
+            </Text>
+          </View>
+        )}
 
         {/* ── Session score ── */}
         <View style={[styles.sessionRow, { backgroundColor: colors.card }]}>
