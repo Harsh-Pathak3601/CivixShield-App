@@ -22,7 +22,7 @@ android/app/build
 android/app/.cxx
 .gradle
 
-# Environment variables
+# Environment variables/
 .env
 .env.local
 
