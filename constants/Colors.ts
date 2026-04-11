@@ -1,3 +1,4 @@
+//Color.ts
 export const Colors = {
   light: {
     background: '#F8FAFC',
