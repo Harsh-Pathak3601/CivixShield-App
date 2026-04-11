@@ -7,6 +7,7 @@ import { TranslatedText as Text } from '../../lib/TranslatedText'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import * as Haptics from 'expo-haptics'
+import { Video, ResizeMode } from 'expo-av'
 import { usePreferences } from '../../lib/PreferencesContext'
 
 // ─── Backend endpoint ────────────────────────────────────────────────────────
@@ -142,10 +143,13 @@ export default function DeepfakeScreen() {
         )}
         {mediaUri && mediaType === 'video' && (
           <View style={[styles.previewBox, { backgroundColor: colors.card, borderColor: colors.primary + '33' }]}>
-            <Text style={[styles.videoPlaceholder, { color: colors.text }]}>🎬 Video selected</Text>
-            <Text style={[styles.videoName, { color: colors.textDim }]} numberOfLines={1}>
-              {mediaUri.split('/').pop()}
-            </Text>
+            <Video
+              source={{ uri: mediaUri }}
+              style={styles.previewImage}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping={false}
+            />
           </View>
         )}
 

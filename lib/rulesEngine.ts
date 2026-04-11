@@ -28,6 +28,12 @@ const INDIAN_AUTHORITY_KEYWORDS = [
   'Delhi Police', 'Mumbai Police', 'Cyber Crime',
 ]
 
+const POSTAL_FRAUD_PATTERNS = [
+  'post office', 'india post', 'unable to deliver', 'incorrect house number', 
+  'package to your door', 'update your address', 'delivery failed', 'package pending',
+  'delivery suspended', 'address update', 'package status'
+]
+
 const UPI_FRAUD_PATTERNS = [
   'collect request', 'UPI PIN', 'approve payment', 'cashback credited',
   'KYC update', 'link Aadhaar', 'verify PAN', 'SIM blocked',
@@ -54,7 +60,49 @@ const URGENCY_AMPLIFIERS = [
 const PHISHING_URL_PATTERNS = [
   'bit.ly', 'tinyurl', 't.me', 'wa.me',
   '-secure-', '-verify-', '-login-', 'secure-sbi', 'rbi-alert',
-  'paytm-kyc', 'verify-pan', 'aadhaar-update',
+  'paytm-kyc', 'verify-pan', 'aadhaar-update', '.cc', '.vip'
+]
+
+const SOCIAL_ENGINEERING_PHRASES = [
+  'open this link', 'click here', 'visit', 'verify now', 'action required',
+  'update now', 'login to', 'claim', 'won', 'prize', 'gift card', 'reward',
+  'account restricted', 'click below', 'update your', 'verify your'
+]
+
+const ECOMMERCE_FRAUD_PATTERNS = [
+  'lucky draw', 'win iphone', 'amazon gift', 'flipkart prize', 
+  'order cancelled refund', 'you won', 'free gift', 'scratch card', 'kbc lottery'
+]
+
+const UTILITY_FRAUD_PATTERNS = [
+  'electricity disconnect', 'power cut', 'pay bill immediately', 
+  'gas connection update', 'mahavitaran', 'bses', 'bescom', 'update electricity bill'
+]
+
+const TELECOM_FRAUD_PATTERNS = [
+  '5g upgrade', 'sim blocked', 'airtel kyc', 'jio free recharge', 
+  'vi lucky draw', 'vodafone kyc', 'bsnl upgrade', 'sim verification pending'
+]
+
+const JOB_FRAUD_PATTERNS = [
+  'part time job', 'work from home', 'youtube like', 'telegram task', 
+  'daily income', 'complete task', 'earn daily', 'wfh', 'salary credited'
+]
+
+const GOVERNMENT_FRAUD_PATTERNS = [
+  'income tax refund', 'pm yojana', 'subsidy approved', 'challan payment', 
+  'free laptop scheme', 'pm kisan', 'free ration'
+]
+
+const MEDIA_GAMING_FRAUD_PATTERNS = [
+  'netflix free', 'hotstar vip free', 'subscription expired', 'prime video gift',
+  'blue badge', 'instagram verified', 'facebook locked', 'whatsapp gold',
+  'free uc', 'free diamonds', 'bgmi hack', 'win cash daily', 'aviator tricks'
+]
+
+const TRAVEL_FOOD_FRAUD_PATTERNS = [
+  'irctc refund', 'flight cancelled', 'cheap tickets', 'makemytrip offer',
+  'swiggy offer', 'zomato refund', 'free meal', 'dominos free'
 ]
 
 /**
@@ -70,6 +118,12 @@ export function analyzeThreat(text: string): LocalAnalysisResult {
     if (lower.includes(kw.toLowerCase())) {
       score += 20
       matchedPatterns.push(`Authority Impersonation: ${kw}`)
+    }
+  }
+  for (const kw of POSTAL_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 20
+      matchedPatterns.push(`Postal/Delivery Fraud: ${kw}`)
     }
   }
   for (const kw of UPI_FRAUD_PATTERNS) {
@@ -94,6 +148,79 @@ export function analyzeThreat(text: string): LocalAnalysisResult {
     if (lower.includes(kw.toLowerCase())) {
       score += 12
       matchedPatterns.push(`Phishing URL: ${kw}`)
+    }
+  }
+  for (const kw of SOCIAL_ENGINEERING_PHRASES) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 20
+      matchedPatterns.push(`Social Engineering: ${kw}`)
+    }
+  }
+  for (const kw of ECOMMERCE_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 15; matchedPatterns.push(`eCommerce/Reward Scam: ${kw}`)
+    }
+  }
+  for (const kw of UTILITY_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 20; matchedPatterns.push(`Utility/Bill Scam: ${kw}`)
+    }
+  }
+  for (const kw of TELECOM_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 15; matchedPatterns.push(`Telecom KYC Scam: ${kw}`)
+    }
+  }
+  for (const kw of JOB_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 20; matchedPatterns.push(`Fake Job/Task Scam: ${kw}`)
+    }
+  }
+  for (const kw of GOVERNMENT_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 20; matchedPatterns.push(`Govt Scheme Fraud: ${kw}`)
+    }
+  }
+  for (const kw of MEDIA_GAMING_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 15; matchedPatterns.push(`Media/Gaming Scam: ${kw}`)
+    }
+  }
+  for (const kw of TRAVEL_FOOD_FRAUD_PATTERNS) {
+    if (lower.includes(kw.toLowerCase())) {
+      score += 15; matchedPatterns.push(`Travel/Food Scam: ${kw}`)
+    }
+  }
+
+  // ── Advanced Link Analysis ───────────────────────────────────
+  const urlRegex = /(https?:\/\/[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}(\/\S*)?)/gi
+  const foundUrls = text.match(urlRegex) || []
+  
+  if (foundUrls.length > 0 || lower.includes("http://") || lower.includes("https://") || lower.includes("www.")) {
+    score += 20
+    if (!matchedPatterns.includes("Suspicious Link Found")) {
+      matchedPatterns.push("Suspicious Link Found")
+    }
+
+    // Brand Impersonation Check (e.g., sbi.in vs sbi.co.in)
+    const brands = ["sbi", "rbi", "hdfc", "icici", "paytm", "kotak", "pnb"]
+    for (const brand of brands) {
+      if (lower.includes(brand)) {
+        const isOfficial = lower.includes(`${brand}.co.in`) || 
+                           lower.includes(`${brand}.org.in`) || 
+                           lower.includes(`${brand}.com`)
+        if (!isOfficial) {
+          score += 35
+          matchedPatterns.push(`Unofficial Brand Link: ${brand}`)
+        }
+      }
+    }
+
+    // Escalation: Link + Social Engineering command = Instant High Risk
+    const hasCommand = SOCIAL_ENGINEERING_PHRASES.some(phrase => lower.includes(phrase.toLowerCase()))
+    if (hasCommand) {
+      score += 25
+      matchedPatterns.push("Link + Social Engineering phrase")
     }
   }
 

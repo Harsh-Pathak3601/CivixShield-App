@@ -21,7 +21,7 @@ export default function URLScannerScreen() {
     setResult(null)
     await Haptics.selectionAsync()
 
-    // Quick local pre-check
+    // Local pre-check score to merge later
     const localResult = analyzeThreat(url)
 
     try {
@@ -32,7 +32,7 @@ export default function URLScannerScreen() {
       })
       const data = await res.json()
 
-      setResult({ ...data, localScore: localResult.riskScore })
+      setResult({ ...data, localScore: localResult.riskScore, loading: false })
 
       await saveThreatLocally({
         sourceType:  'URL',
@@ -48,15 +48,21 @@ export default function URLScannerScreen() {
       if (data.risk_score >= 50) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
       }
-    } catch {
-      setResult({ risk_score: localResult.riskScore, risk_level: localResult.riskLevel,
-        red_flags: localResult.matchedPatterns, localScore: localResult.riskScore })
+    } catch (err: any) {
+      console.error("Fetch failed:", err)
+      setResult({ 
+        risk_score: localResult.riskScore, 
+        risk_level: localResult.riskLevel,
+        red_flags: localResult.matchedPatterns, 
+        localScore: localResult.riskScore, 
+        error: `API Connection Failed: ${err.message}. Showing local-only results.`
+      })
     } finally {
       setIsScanning(false)
     }
   }
 
-  const score = result?.risk_score ?? 0
+  const score = result?.risk_score ?? result?.riskScore ?? 0
   const color = score >= 80 ? colors.danger : score >= 50 ? '#FF6B35' : score >= 30 ? colors.warning : colors.success
 
   return (
@@ -94,18 +100,58 @@ export default function URLScannerScreen() {
               {(result.risk_level ?? 'unknown').toUpperCase()} RISK
             </Text>
 
-            {result.safe_browsing_result && (
-              <Text style={[styles.safeBrowsing, { color: colors.textDim }]}>
-                Google Safe Browsing: {result.safe_browsing_result}
+
+
+            {result.safe_browsing_result && result.safe_browsing_result !== 'SAFE' && (
+              <Text style={[styles.safeBrowsing, { 
+                color: result.safe_browsing_result === 'MALICIOUS' ? colors.danger : colors.success,
+                fontWeight: result.safe_browsing_result === 'MALICIOUS' ? '900' : '700',
+                textDecorationLine: result.safe_browsing_result === 'MALICIOUS' ? 'underline' : 'none'
+              }]}>
+                GOOGLE SAFE BROWSING: {result.safe_browsing_result}
               </Text>
             )}
 
-            {(result.red_flags ?? []).length > 0 && (
+            {result.url_verdict && (
+              <View style={[styles.verdictBox, { backgroundColor: colors.background }]}>
+                <Text style={[styles.verdictTitle, { color: colors.primary }]}>URL FORENSIC VERDICT</Text>
+                <Text style={[styles.verdictText, { color: colors.textDim }]}>
+                  Verified Domain: {result.url_verdict.domain || 'Unknown'}
+                  {"\n"}Final Verdict: {result.url_verdict.verdict}
+                </Text>
+              </View>
+            )}
+
+            {/* AI Explanation Section */}
+            {result.explanation && (
+              <View style={[styles.explanationContainer, { backgroundColor: colors.background }]}>
+                <Text style={[styles.sectionHeading, { color: colors.primary }]}>[ THREAT ANALYSIS REPORT ]</Text>
+                <Text style={[styles.explanationText, { color: colors.text }]}>&gt; {result.explanation}</Text>
+              </View>
+            )}
+
+            {/* Recommendations Section */}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <View style={styles.recommendationsContainer}>
+                <Text style={[styles.sectionHeading, { color: colors.success }]}>[ REMEDIATION STEPS ]</Text>
+                {result.recommendations.map((rec: string, i: number) => (
+                  <Text key={i} style={[styles.recItem, { color: colors.textDim }]}>• {rec}</Text>
+                ))}
+              </View>
+            )}
+
+            {(result.red_flags ?? result.matchedPatterns ?? []).length > 0 && (
               <View style={[styles.flags, { backgroundColor: colors.danger + '11' }]}>
-                <Text style={styles.flagsTitle}>RED FLAGS:</Text>
-                {(result.red_flags).map((f: string, i: number) => (
+                <Text style={styles.flagsTitle}>RED FLAGS DETECTED:</Text>
+                {(result.red_flags ?? result.matchedPatterns ?? []).map((f: string, i: number) => (
                   <Text key={i} style={styles.flagItem}>⚑ {f}</Text>
                 ))}
+              </View>
+            )}
+
+            {result.error && (
+              <View style={[styles.errorBox, { backgroundColor: colors.warning + '11' }]}>
+                <Text style={[styles.errorText, { color: colors.warning }]}>{result.error}</Text>
               </View>
             )}
 
@@ -144,8 +190,20 @@ const styles = StyleSheet.create({
   flags:       { backgroundColor: '#1a0a00', borderRadius: 6, padding: 12, marginBottom: 12 },
   flagsTitle:  { color: '#FF6B35', fontSize: 11, fontFamily: 'monospace', fontWeight: '700', marginBottom: 8 },
   flagItem:    { color: '#ffaa66', fontSize: 12, fontFamily: 'monospace', marginBottom: 4 },
+  verdictBox:  { padding: 12, borderRadius: 6, marginBottom: 12 },
+  verdictTitle:{ fontSize: 10, fontFamily: 'monospace', fontWeight: '800', letterSpacing: 1, marginBottom: 6 },
+  verdictText: { fontSize: 12, fontFamily: 'monospace', lineHeight: 18 },
+  loadingContainer:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  loadingTextSmall: { fontSize: 10, fontFamily: 'monospace', marginLeft: 8 },
+  sectionHeading: { fontSize: 10, fontFamily: 'monospace', fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
+  explanationContainer: { padding: 12, borderRadius: 6, marginBottom: 12 },
+  explanationText: { fontSize: 13, fontFamily: 'monospace', lineHeight: 20 },
+  recommendationsContainer: { padding: 12, marginBottom: 12 },
+  recItem:      { fontSize: 12, fontFamily: 'monospace', marginBottom: 4, lineHeight: 18 },
   warningBox:  { backgroundColor: '#1a0000', borderRadius: 6, padding: 14, borderColor: '#DC262644', borderWidth: 1 },
   warningText: { color: '#DC2626', fontSize: 13, lineHeight: 20, textAlign: 'center' },
+  errorBox:    { padding: 12, borderRadius: 6, marginTop: 12, borderWidth: 1, borderColor: '#FF6B3555' },
+  errorText:   { fontSize: 11, fontFamily: 'monospace', textAlign: 'center' },
   scanAnotherBtn:   { marginTop: 16, borderWidth: 1, borderColor: '#333', borderRadius: 6, paddingVertical: 14, alignItems: 'center' },
   scanAnotherText:  { color: '#666', fontFamily: 'monospace', fontSize: 12, letterSpacing: 2 },
 })

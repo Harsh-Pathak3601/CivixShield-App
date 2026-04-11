@@ -85,7 +85,6 @@ export default function DashboardScreen() {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <StatCard label={t('total_threats', language)} value={totalThreats} color={colors.danger} />
-          <StatCard label={t('calls_blocked', language)} value={recentThreats.filter(t => t.sourceType === 'CALL').length} color={colors.warning} />
           <StatCard label={t('links_scanned', language)} value={recentThreats.filter(t => t.sourceType === 'URL').length} color={colors.primary} />
         </View>
 
@@ -95,7 +94,6 @@ export default function DashboardScreen() {
           <ActionButton label={t('sms_engine', language)} icon="chatbubble-ellipses" color={colors.primary} onPress={() => handleNavigation('/sms-shield')} />
           <ActionButton label={t('url_scanner', language)} icon="link" color={colors.primary} onPress={() => handleNavigation('/url-scanner')} />
           <ActionButton label={t('deepfake_detect', language)} icon="scan" color={colors.danger} onPress={() => handleNavigation('/deepfake')} />
-          <ActionButton label={t('live_monitor', language)} icon="call" color={colors.success} onPress={() => handleNavigation('/call-monitor')} />
         </View>
 
         {/* WhatsApp Bot Link */}
@@ -222,7 +220,7 @@ const styles = StyleSheet.create({
   statusSub:       { color: '#A0B2C6', fontSize: 10, fontFamily: 'monospace', marginTop: 4 },
   
   statsRow:        { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28 },
-  statCard:        { width: (width - 56) / 3, alignItems: 'center', paddingVertical: 18, borderRadius: 12, backgroundColor: 'rgba(10, 15, 25, 0.4)', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.1)' },
+  statCard:        { width: (width - 48) / 2, alignItems: 'center', paddingVertical: 18, borderRadius: 12, backgroundColor: 'rgba(10, 15, 25, 0.4)', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.1)' },
   statTopBar:      { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   statValue:       { fontSize: 26, fontWeight: '900', fontFamily: 'monospace' },
   statLabel:       { color: '#8892B0', fontSize: 9, fontFamily: 'monospace', textAlign: 'center', marginTop: 6, letterSpacing: 1 },

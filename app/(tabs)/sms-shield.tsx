@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { TranslatedText as Text } from '../../lib/TranslatedText'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { analyzeThreat } from '../../lib/rulesEngine'
 import { saveThreatLocally } from '../../lib/database'
-import { showThreatAlert } from '../../lib/threatAlert'
 import { usePreferences } from '../../lib/PreferencesContext'
 
 const CIVIX_API = 'https://civix-shield-final.vercel.app/api/analyze'
@@ -24,7 +23,6 @@ export default function SMSShieldScreen() {
 
     // ── Step 1: Instant local analysis (offline, <2ms) ────────────────────
     const localResult = analyzeThreat(inputText)
-    setResult({ ...localResult, source: 'local', loading: true })
 
     try {
       // ── Step 2: Deep AI analysis via Gemini backend ───────────────────
@@ -54,9 +52,8 @@ export default function SMSShieldScreen() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
       }
 
-    } catch (err) {
-      setResult({ ...localResult, loading: false, risk_score: localResult.riskScore,
-        risk_level: localResult.riskLevel, red_flags: localResult.matchedPatterns })
+      setResult({ ...localResult, risk_score: localResult.riskScore,
+        risk_level: localResult.riskLevel, red_flags: localResult.matchedPatterns, error: true })
     } finally {
       setIsScanning(false)
     }
@@ -103,18 +100,54 @@ export default function SMSShieldScreen() {
               {(result.risk_level ?? result.riskLevel ?? 'unknown').toUpperCase()} RISK
             </Text>
 
-            {/* Local pre-score indicator */}
-            {result.localScore !== undefined && (
-              <Text style={[styles.localScore, { color: colors.textDim }]}>
-                Local Pre-Score: {result.localScore}/100  |  AI Score: {result.risk_score ?? 'N/A'}/100
-              </Text>
+
+                {result.localScore !== undefined && (
+                  <Text style={[styles.localScore, { color: colors.textDim }]}>
+                    Local Pre-Score: {result.localScore}/100  |  AI Confidence Score: {result.risk_score ?? 'N/A'}/100
+                  </Text>
+                )}
+
+                {/* Safe Browsing Status */}
+                {result.safe_browsing_result && result.safe_browsing_result !== 'SAFE' && (
+                  <Text style={[styles.safeBrowsing, { color: result.safe_browsing_result === 'MALICIOUS' ? colors.danger : colors.success }]}>
+                    GOOGLE SAFE BROWSING: {result.safe_browsing_result}
+                  </Text>
+                )}
+
+            {/* URL Verdict (if URLs were found in SMS) */}
+            {result.url_verdict && (
+              <View style={[styles.verdictBox, { backgroundColor: colors.background }]}>
+                <Text style={[styles.verdictTitle, { color: colors.primary }]}>LINK FORENSIC VERDICT</Text>
+                <Text style={[styles.verdictText, { color: colors.textDim }]}>
+                  Domain: {result.url_verdict.domain || 'Unknown'}
+                  {"\n"}Verdict: {result.url_verdict.verdict}
+                </Text>
+              </View>
+            )}
+
+            {/* AI Explanation Section */}
+            {result.explanation && (
+              <View style={[styles.explanationContainer, { backgroundColor: colors.background }]}>
+                <Text style={[styles.sectionHeading, { color: colors.primary }]}>[ AI ANALYSIS REPORT ]</Text>
+                <Text style={[styles.explanationText, { color: colors.text }]}>&gt; {result.explanation}</Text>
+              </View>
+            )}
+
+            {/* Recommendations Section */}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <View style={styles.recommendationsContainer}>
+                <Text style={[styles.sectionHeading, { color: colors.success }]}>[ SAFETY RECOMMENDATIONS ]</Text>
+                {result.recommendations.map((rec: string, i: number) => (
+                  <Text key={i} style={[styles.recItem, { color: colors.textDim }]}>• {rec}</Text>
+                ))}
+              </View>
             )}
 
             {/* Red Flags */}
             {(result.red_flags ?? result.matchedPatterns ?? []).length > 0 && (
               <View style={[styles.flagsContainer, { backgroundColor: colors.danger + '11' }]}>
                 <Text style={styles.flagsTitle}>RED FLAGS DETECTED:</Text>
-                {(result.red_flags ?? result.matchedPatterns).map((flag: string, i: number) => (
+                {(result.red_flags ?? result.matchedPatterns ?? []).map((flag: string, i: number) => (
                   <Text key={i} style={styles.flagItem}>⚑ {flag}</Text>
                 ))}
               </View>
@@ -150,9 +183,19 @@ const styles = StyleSheet.create({
   scoreText:       { fontSize: 52, fontWeight: '900', fontFamily: 'monospace', textAlign: 'center' },
   levelText:       { fontSize: 16, fontFamily: 'monospace', fontWeight: '700', textAlign: 'center', marginBottom: 16 },
   localScore:      { color: '#666', fontSize: 11, fontFamily: 'monospace', textAlign: 'center', marginBottom: 12 },
+  safeBrowsing:    { color: '#888', fontSize: 12, fontFamily: 'monospace', textAlign: 'center', marginBottom: 12 },
+  verdictBox:      { padding: 12, borderRadius: 6, marginBottom: 12 },
+  verdictTitle:    { fontSize: 10, fontFamily: 'monospace', fontWeight: '800', letterSpacing: 1, marginBottom: 6 },
+  verdictText:     { fontSize: 12, fontFamily: 'monospace', lineHeight: 18 },
   flagsContainer:  { backgroundColor: '#1a0a00', borderRadius: 6, padding: 12, marginBottom: 12 },
   flagsTitle:      { color: '#FF6B35', fontSize: 11, fontFamily: 'monospace', fontWeight: '700', marginBottom: 8 },
   flagItem:        { color: '#ffaa66', fontSize: 12, fontFamily: 'monospace', marginBottom: 4 },
+  loadingContainer:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  sectionHeading:  { fontSize: 10, fontFamily: 'monospace', fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
+  explanationContainer: { padding: 12, borderRadius: 6, marginBottom: 12 },
+  explanationText: { fontSize: 13, fontFamily: 'monospace', lineHeight: 20 },
+  recommendationsContainer: { padding: 12, marginBottom: 12 },
+  recItem:         { fontSize: 12, fontFamily: 'monospace', marginBottom: 4, lineHeight: 18 },
   scamType:        { color: '#666', fontSize: 12, fontFamily: 'monospace', textAlign: 'center', marginBottom: 12 },
   scanAnotherBtn:  { marginTop: 16, borderWidth: 1, borderColor: '#333', borderRadius: 6, paddingVertical: 14, alignItems: 'center' },
   scanAnotherText: { color: '#666', fontFamily: 'monospace', fontSize: 12, letterSpacing: 2 },
